@@ -13,3 +13,5 @@ test-results/
 Confirmation email.png
 *backup*.json
 c1prep*.json
+.vercel
+.env*
