@@ -1,0 +1,960 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>C1 Prep · redesign prototype</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500;600&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&display=swap" rel="stylesheet">
+<style>
+/* ---------- tokens ---------- */
+:root{
+  --bg:#F4F3EF; --surface:#FCFBF9; --sunken:#ECEAE4;
+  --line:#DEDBD3; --line-strong:#C9C5BB; --field:#8E8C85;
+  --ink:#1B1C1F; --ink-2:#4A4B50; --ink-3:#686970;
+  --accent:#2A45C9; --accent-hover:#2139AD; --accent-soft:#E6E9F8; --on-accent:#FFFFFF;
+  --secure:#2C7A4B; --secure-soft:#E3F0E7;
+  --borderline:#9A5B00; --borderline-soft:#F6EBD6;
+  --priority:#B93A26; --priority-soft:#F8E4DF;
+  --shadow:0 1px 0 rgba(27,28,31,.04),0 12px 28px -16px rgba(27,28,31,.18);
+  --serif:"Newsreader",Charter,"Iowan Old Style",Georgia,serif;
+  --sans:"Schibsted Grotesk",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --ease:cubic-bezier(.25,1,.5,1);
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]){
+  --bg:#131416; --surface:#1B1C1F; --sunken:#0E0F10;
+  --line:#2E2F34; --line-strong:#3F4047; --field:#6B6C74;
+  --ink:#ECEAE4; --ink-2:#B5B3AD; --ink-3:#8C8B87;
+  --accent:#8FA2FF; --accent-hover:#A6B5FF; --accent-soft:#1E2440; --on-accent:#10142B;
+  --secure:#6CC08B; --secure-soft:#16271D;
+  --borderline:#E0A84E; --borderline-soft:#2B2213;
+  --priority:#F0836F; --priority-soft:#2E1915;
+  --shadow:none; color-scheme:dark;
+}}
+:root[data-theme=dark]{
+  --bg:#131416; --surface:#1B1C1F; --sunken:#0E0F10;
+  --line:#2E2F34; --line-strong:#3F4047; --field:#6B6C74;
+  --ink:#ECEAE4; --ink-2:#B5B3AD; --ink-3:#8C8B87;
+  --accent:#8FA2FF; --accent-hover:#A6B5FF; --accent-soft:#1E2440; --on-accent:#10142B;
+  --secure:#6CC08B; --secure-soft:#16271D;
+  --borderline:#E0A84E; --borderline-soft:#2B2213;
+  --priority:#F0836F; --priority-soft:#2E1915;
+  --shadow:none; color-scheme:dark;
+}
+/* ---------- base ---------- */
+*{box-sizing:border-box;margin:0}
+body{background:var(--bg);color:var(--ink);font:400 15px/1.5 var(--sans);-webkit-font-smoothing:antialiased}
+button,input,select{font:inherit;color:inherit}
+button{cursor:pointer;background:none;border:0;padding:0}
+a{color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:4px}
+svg.i{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.num{font-variant-numeric:tabular-nums}
+.muted{color:var(--ink-3)} .two{color:var(--ink-2)}
+h1,h2,h3{font-weight:500;text-wrap:balance}
+.serif{font-family:var(--serif)}
+.meta{font-size:13px;color:var(--ink-3)}
+.sec{font:600 13px/1.4 var(--sans);color:var(--ink-2);display:flex;align-items:baseline;gap:8px;margin-bottom:12px}
+.sec .count{font-weight:400;color:var(--ink-3)}
+.sec .right{margin-left:auto;font-weight:400}
+
+/* ---------- shell ---------- */
+.shell{display:grid;grid-template-columns:216px minmax(0,1fr);max-width:1280px;margin:0 auto;min-height:100vh}
+.rail{position:sticky;top:0;height:100vh;padding:28px 16px 24px 24px;display:flex;flex-direction:column;gap:4px;border-right:1px solid var(--line)}
+.brand{font:500 20px/1 var(--serif);letter-spacing:-.01em;padding:0 12px 24px}
+.brand i{color:var(--accent);font-style:italic}
+.nav{display:flex;align-items:center;gap:12px;height:36px;padding:0 12px;border-radius:8px;font-weight:500;font-size:14px;color:var(--ink-2);width:100%;text-align:left;transition:background .12s,color .12s}
+.nav:hover{background:var(--sunken);color:var(--ink)}
+.nav[aria-current=page]{background:var(--sunken);color:var(--ink)}
+.nav[aria-current=page] svg{color:var(--accent)}
+.nav .badge{margin-left:auto;font-size:12px;font-weight:600;color:var(--accent)}
+.rail-foot{margin-top:auto;padding:0 12px;font-size:12px;color:var(--ink-3);display:grid;gap:10px}
+.rail-foot button{font-size:12px;color:var(--ink-2);text-decoration:underline;text-underline-offset:3px;text-align:left}
+main{padding:36px 40px 96px;min-width:0}
+.screen{display:none}.screen.on{display:block}
+.tabbar{display:none}
+
+/* ---------- buttons, inputs, chips ---------- */
+.btn{text-decoration:none;display:inline-flex;align-items:center;gap:8px;height:36px;padding:0 14px;border-radius:8px;border:1px solid var(--line-strong);background:var(--surface);font-weight:500;font-size:14px;white-space:nowrap;transition:background .12s,border-color .12s,transform .12s var(--ease)}
+.btn:hover{border-color:var(--ink-3)}
+.btn:active{transform:translateY(1px)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
+.btn.primary:hover{background:var(--accent-hover);border-color:var(--accent-hover)}
+.btn.ghost{border-color:transparent;background:none;color:var(--ink-2)}
+.btn.ghost:hover{background:var(--sunken);color:var(--ink)}
+.btn.lg{height:44px;padding:0 18px;font-size:15px}
+.btn.sm{height:30px;padding:0 10px;font-size:13px}
+.input{height:36px;padding:0 12px;border:1px solid var(--field);border-radius:8px;background:var(--surface);font-size:14px;width:100%;transition:border-color .12s,box-shadow .12s}
+.input::placeholder{color:var(--ink-3)}
+.input:hover{border-color:var(--ink-3)}
+.input:focus{outline:0;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+.tag{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:500;color:var(--ink-2);height:22px;padding:0 8px;border-radius:4px;background:var(--sunken);white-space:nowrap}
+.status{display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:600}
+.status::before{content:"";width:8px;height:8px;border-radius:50%;background:currentColor}
+.status.secure{color:var(--secure)}.status.borderline{color:var(--borderline)}.status.priority{color:var(--priority)}
+.seg{display:inline-flex;padding:2px;border-radius:8px;background:var(--sunken);gap:2px;flex-wrap:wrap}
+.seg button{height:30px;padding:0 12px;border-radius:6px;font-size:13px;font-weight:500;color:var(--ink-2)}
+.seg button[aria-pressed=true]{background:var(--surface);color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.08)}
+
+/* ---------- TODAY ---------- */
+.today-head{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:32px;align-items:end;margin-bottom:28px}
+.today-head h1{font:500 34px/1.15 var(--serif);letter-spacing:-.015em;max-width:22ch;margin-top:6px}
+.countdown{text-align:right;line-height:1}
+.countdown b{font:500 56px/0.9 var(--serif);letter-spacing:-.03em;display:block}
+.countdown span{font-size:13px;color:var(--ink-3)}
+/* journey */
+.journey{display:flex;align-items:flex-end;gap:14px;height:64px;padding-bottom:18px;position:relative;margin-bottom:36px;border-bottom:1px solid var(--line)}
+.week{display:flex;align-items:flex-end;gap:4px;flex:7;position:relative;height:100%}
+.week.short{flex:5}
+.week::after{content:attr(data-label);position:absolute;left:0;bottom:-36px;font-size:12px;color:var(--ink-3);white-space:nowrap}
+.d{font-style:normal;flex:1;min-width:4px;border-radius:3px;background:var(--line-strong);position:relative;transition:background .12s}
+.d.done{background:var(--ink)}
+.d.part{background:linear-gradient(to top,var(--ink) 55%,var(--line-strong) 55%)}
+.d.today{background:var(--accent)}
+.d.today::after{content:"";position:absolute;left:50%;bottom:-11px;width:5px;height:5px;margin-left:-2.5px;border-radius:50%;background:var(--accent)}
+.d.mock::before{content:attr(data-m);position:absolute;top:-18px;left:50%;transform:translateX(-50%);font-size:11px;font-weight:600;color:var(--ink-2);white-space:nowrap}
+.exam{flex:none;align-self:flex-end;display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--ink-2);padding-bottom:2px}
+.exam i{font-style:normal;width:12px;height:12px;border-radius:50%;border:2px solid var(--ink)}
+.today-grid{display:grid;grid-template-columns:minmax(0,1fr) 312px;gap:48px;align-items:start;padding-top:20px}
+/* day progress */
+.dayprog{display:flex;align-items:center;gap:12px;margin-bottom:16px;font-size:13px;color:var(--ink-2)}
+.dayprog .bar{flex:1;display:flex;gap:3px;height:6px}
+.dayprog .bar i{border-radius:3px;background:var(--line-strong)}
+.dayprog .bar i.done{background:var(--ink)}
+.dayprog .bar i.now{background:var(--accent)}
+/* next card: the one card on the screen */
+.next{background:var(--surface);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);padding:28px}
+.next .row1{display:flex;align-items:center;gap:8px;margin-bottom:12px;font-size:13px;color:var(--ink-3)}
+.next .row1 b{color:var(--accent);font-weight:600}
+.next h2{font:500 24px/1.25 var(--serif);letter-spacing:-.01em;margin-bottom:8px}
+.next p.body{font-size:15px;color:var(--ink-2);max-width:60ch;text-wrap:pretty}
+.next p.body a{color:var(--ink);text-decoration:underline;text-decoration-color:var(--line-strong);text-underline-offset:3px}
+.next p.body a:hover{text-decoration-color:var(--accent)}
+.actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:20px}
+.actions .spacer{flex:1}
+.record{margin-top:24px;padding-top:20px;border-top:1px solid var(--line)}
+.record .head{display:flex;align-items:baseline;gap:8px;font-size:13px;margin-bottom:12px}
+.record .head b{font-weight:600}
+.scores{display:flex;flex-wrap:wrap;gap:12px 20px;margin-bottom:12px}
+.score{display:flex;align-items:center;gap:8px;font-size:14px}
+.score .input{width:56px;text-align:right;padding:0 10px}
+.basis{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:500;color:var(--ink-2)}
+.basis i{width:14px;height:8px;border-radius:2px}
+.basis.official i{background:var(--ink)}
+.basis.unofficial i{border:1.5px dashed var(--ink-3)}
+.basis.tutor i{background:radial-gradient(circle,var(--ink-2) 2.5px,transparent 3px) 0 0/7px 8px}
+/* task rows */
+.tasks{margin-top:28px}
+.task{display:grid;grid-template-columns:24px minmax(0,1fr) auto;gap:12px;align-items:start;padding:14px 0;border-top:1px solid var(--line);width:100%;text-align:left}
+.task:hover .t{color:var(--ink)}
+.check{width:20px;height:20px;border-radius:50%;border:1.5px solid var(--line-strong);margin-top:1px;display:grid;place-items:center;color:transparent}
+.check svg{width:12px;height:12px;stroke-width:2.4}
+.task.done .check{background:var(--ink);border-color:var(--ink);color:var(--bg)}
+.task.done .t{color:var(--ink-3);text-decoration:line-through;text-decoration-color:var(--line-strong)}
+.task.skip .check{border-style:dashed}
+.task .t{font-size:15px;color:var(--ink);text-wrap:pretty}
+.task .s{font-size:13px;color:var(--ink-3);margin-top:2px}
+.task .m{font-size:13px;color:var(--ink-3);white-space:nowrap;padding-top:2px}
+/* aside */
+aside section{padding:20px 0;border-top:1px solid var(--line)}
+aside section:first-child{border-top:0;padding-top:0}
+.peek{font:400 17px/1.4 var(--serif);margin-bottom:14px}
+.peek s{text-decoration-color:var(--priority);text-decoration-thickness:1.5px;color:var(--ink-2)}
+dl.brief{display:grid;gap:10px;font-size:13px}
+dl.brief dt{font-weight:600;color:var(--ink-2)}
+dl.brief dd{color:var(--ink-2)}
+code{font:500 12px ui-monospace,SFMono-Regular,Menlo,monospace;background:var(--sunken);padding:2px 5px;border-radius:4px}
+textarea.input{height:auto;padding:10px 12px;resize:vertical;line-height:1.5}
+
+/* ---------- PLAN ---------- */
+.page-head{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;margin-bottom:28px}
+.page-head h1{font:500 34px/1.15 var(--serif);letter-spacing:-.015em}
+.page-head p{font-size:14px;color:var(--ink-3);margin-top:6px;max-width:56ch}
+.plan-grid{display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:40px;align-items:start}
+.wk{margin-bottom:28px}
+.wk h2{font:400 17px/1.3 var(--serif);margin-bottom:10px;display:flex;gap:10px;align-items:baseline}
+.wk h2 em{font-style:italic;color:var(--ink-3)}
+.wk h2 span{margin-left:auto;font:400 13px var(--sans);color:var(--ink-3)}
+.cells{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px}
+.cell{position:relative;text-align:left;padding:10px 10px 8px;border:1px solid var(--line);border-radius:8px;background:transparent;min-height:84px;display:flex;flex-direction:column;gap:2px;transition:border-color .12s,background .12s}
+.cell:hover{border-color:var(--ink-3)}
+.cell .wd{font-size:12px;color:var(--ink-3)}
+.cell .dn{font:500 22px/1 var(--serif)}
+.cell .mn{font-size:12px;color:var(--ink-3);margin-top:auto}
+.cell .dots{display:flex;gap:3px;margin-top:4px}
+.cell .dots i{width:6px;height:6px;border-radius:50%;border:1.5px solid var(--line-strong)}
+.cell .dots i.on{background:var(--ink);border-color:var(--ink)}
+.cell .dots i.late{background:var(--borderline);border-color:var(--borderline)}
+.cell.past{background:var(--sunken);border-color:transparent}
+.cell.past .dn{color:var(--ink-2)}
+.cell.today{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
+.cell.today .wd{color:var(--accent);font-weight:600}
+.cell.sel{background:var(--surface);border-color:var(--ink)}
+.cell.today.sel{border-color:var(--accent)}
+.cell.mock{background:var(--ink);border-color:var(--ink);color:var(--bg)}
+.cell.mock .wd,.cell.mock .mn{color:inherit;opacity:.7}
+.cell.mock .dots i{border-color:currentColor;opacity:.6}
+.cell.exam-cell{border-style:dashed;border-color:var(--ink-3);justify-content:center}
+.cell .kind{position:absolute;top:10px;right:10px;font-size:11px;font-weight:600}
+.cell.light .kind{color:var(--ink-3);font-weight:500}
+.cell.mock .kind{position:static;font-size:12px}.cell.mock .wd{display:none}
+.detail{position:sticky;top:36px;background:var(--surface);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);padding:24px}
+.detail h3{font:500 22px/1.25 var(--serif);margin:6px 0 4px}
+.detail .task:first-of-type{margin-top:16px}
+
+/* ---------- MISTAKES ---------- */
+.due{display:flex;align-items:center;gap:20px;padding:20px 24px;border-radius:12px;background:var(--accent-soft);margin-bottom:32px}
+.due b{font:500 34px/1 var(--serif);color:var(--accent)}
+.due p{font-size:14px;color:var(--ink-2);flex:1;min-width:0} .due p strong{color:var(--ink);font-weight:600;display:block;font-size:15px}
+.due .btn{margin-left:auto}
+.composer{display:grid;grid-template-columns:minmax(0,1fr) 24px minmax(0,1fr);gap:8px;align-items:center;margin-bottom:8px}
+.composer .input{height:48px;font:400 17px var(--serif);background:var(--surface)}
+.composer svg{color:var(--ink-3);justify-self:center}
+.composer-more{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr) minmax(0,1fr) auto;gap:8px;margin-bottom:8px}
+.hint{font-size:12px;color:var(--ink-3);margin-bottom:36px}
+.toolbar{display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin-bottom:8px}
+.toolbar .btn{margin-left:auto}
+.mk{display:grid;grid-template-columns:minmax(0,1fr) 190px;gap:24px;padding:18px 0;border-top:1px solid var(--line)}
+.mk .pair{font:400 19px/1.35 var(--serif)}
+.mk .pair s{color:var(--ink-3);text-decoration-color:var(--priority);text-decoration-thickness:1.5px}
+.mk .pair b{font-weight:500;display:block}
+.mk .why{font-size:13px;color:var(--ink-2);margin-top:6px}
+.mk .side{display:grid;gap:6px;justify-items:end;align-content:start;font-size:12px;color:var(--ink-3);text-align:right}
+.pips{display:inline-flex;gap:3px;vertical-align:middle;margin-right:6px}
+.pips i{width:14px;height:4px;border-radius:2px;background:var(--line-strong)}
+.pips i.on{background:var(--secure)}
+.types{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:20px}
+
+/* ---------- PROGRESS ---------- */
+.legend{display:flex;flex-wrap:wrap;gap:8px 20px;margin-bottom:28px;padding-bottom:20px;border-bottom:1px solid var(--line)}
+.flex{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:32px;padding:24px;border-radius:12px;background:var(--surface);border:1px solid var(--line);margin-bottom:40px}
+.flex h2{font:500 22px/1.3 var(--serif);margin-top:4px}
+.gap{display:grid;grid-template-columns:110px 1fr 28px;gap:10px;align-items:center;font-size:13px;margin-bottom:8px}
+.gap i{height:6px;border-radius:3px;background:var(--ink)}
+.gap span:last-child{text-align:right;color:var(--ink-3)}
+.skill{display:grid;grid-template-columns:200px minmax(0,1fr);gap:32px;padding:28px 0;border-top:1px solid var(--line)}
+.skill h2{font:500 22px/1.2 var(--serif);margin-bottom:8px}
+.skill .big{font:500 34px/1 var(--serif);margin-top:14px}
+.skill .big small{font:400 15px var(--sans);color:var(--ink-3)}
+.result{margin-bottom:22px}
+.result .cap{display:flex;gap:10px;align-items:baseline;font-size:13px;color:var(--ink-2);margin-bottom:26px;flex-wrap:wrap}
+.anchor{position:relative;height:10px;border-radius:5px;background:var(--sunken);margin-bottom:26px}
+.anchor .fill{position:absolute;inset:0 auto 0 0;border-radius:5px;background:var(--ink)}
+.anchor .tick{position:absolute;top:-6px;bottom:-6px;width:1.5px;background:var(--ink-2)}
+.anchor .tick.est{background:none;border-left:1.5px dotted var(--ink-3)}
+.anchor .tick span{position:absolute;bottom:100%;left:50%;transform:translateX(-50%);font-size:11px;color:var(--ink-3);white-space:nowrap;padding-bottom:3px}
+.anchor .tick.pass span{color:var(--ink);font-weight:600}
+.anchor .you{position:absolute;top:100%;transform:translateX(-50%);font-size:12px;font-weight:600;padding-top:8px}
+.trend{display:flex;align-items:flex-end;gap:14px;height:56px;border-bottom:1px dashed var(--line-strong);margin:8px 0 26px;position:relative}
+.trend div{position:relative;width:44px;height:100%}
+.trend div i{position:absolute;left:8px;width:11px;height:11px;border-radius:50%;border:1.5px solid var(--ink-2);background:var(--bg)}
+.trend div b{position:absolute;left:26px;margin-bottom:-3px;font-size:12px;font-weight:600;font-variant-numeric:tabular-nums}
+.trend div span{position:absolute;bottom:-22px;left:-8px;width:44px;white-space:nowrap;text-align:center;font-size:11px;color:var(--ink-3)}
+.bands{display:grid;gap:8px;font-size:13px}
+.bands>div{display:grid;justify-content:start;grid-template-columns:minmax(0,190px) auto 32px;gap:12px;align-items:center}
+.bp{display:inline-flex;gap:4px}
+.bp i{width:10px;height:10px;border-radius:50%;border:1.5px solid var(--line-strong)}
+.bp i.on{background:var(--ink-2);border-color:var(--ink-2)}
+.bp i.half{background:linear-gradient(90deg,var(--ink-2) 50%,transparent 50%);border-color:var(--ink-2)}
+.foot{font-size:12px;color:var(--ink-3);max-width:70ch;padding-top:20px;border-top:1px solid var(--line)}
+
+/* ---------- states: expanded task, completed day, exam day ---------- */
+[hidden]{display:none!important}
+.task .m{display:flex;align-items:center;gap:6px}
+.task .m svg{width:14px;height:14px;transition:transform .18s var(--ease)}
+.task[aria-expanded=true] .m svg{transform:rotate(180deg)}
+.task[aria-expanded=true] .t{font-weight:500}
+.more{padding:0 0 20px 36px}
+.more p.body{font-size:14px;color:var(--ink-2);text-wrap:pretty}
+.more .actions{margin-top:14px}
+.more .record{margin-top:18px;padding-top:16px}
+.more .scores{display:grid;gap:8px}
+.more .score{display:grid;grid-template-columns:minmax(0,1fr) 56px;max-width:280px}
+.more .caption{font-size:12px;color:var(--ink-3);margin-top:10px}
+.st-done .tasks .check{background:var(--ink);border-color:var(--ink);color:var(--bg)}
+.st-done .tasks .t{color:var(--ink-3);text-decoration:line-through;text-decoration-color:var(--line-strong)}
+.st-done .dayprog .bar i,.st-done .d.today{background:var(--ink)}
+.donecard h2{font:500 28px/1.2 var(--serif);letter-spacing:-.01em}
+.donecard>p{font-size:15px;color:var(--ink-2);margin-top:6px}
+.tomorrow{margin-top:24px;padding-top:20px;border-top:1px solid var(--line);display:grid;gap:6px;justify-items:start}
+.tomorrow .serif{font-size:19px;line-height:1.35;max-width:40ch}
+.tomorrow .btn{margin-top:10px}
+.examday{max-width:720px}
+.examday h1{font:500 34px/1.15 var(--serif);letter-spacing:-.015em;margin:6px 0 8px}
+.examday .lede{font-size:15px;color:var(--ink-2);margin-bottom:28px;max-width:64ch}
+.paper{display:grid;grid-template-columns:168px minmax(0,1fr);gap:24px;padding:18px 0;border-top:1px solid var(--line)}
+.paper h2{font:500 17px/1.5 var(--serif)}
+.paper h2 span{display:block;font:400 13px/1.4 var(--sans);color:var(--ink-3)}
+.paper p{font:400 17px/1.5 var(--serif);text-wrap:pretty}
+
+/* ---------- review session, empty and no-result states ---------- */
+.review{max-width:560px;margin:5vh auto 0}
+.rv-top{display:flex;align-items:center;gap:14px;font-size:13px;color:var(--ink-3)}
+.rv-top .btn{margin-left:-10px}
+.rv-top .btn svg{transform:rotate(180deg)}
+.rv-dots{display:flex;gap:6px;margin-left:auto}
+.rv-dots i{width:8px;height:8px;border-radius:50%;background:var(--line-strong)}
+.rv-dots i.done{background:var(--ink)}.rv-dots i.now{background:var(--accent)}
+.review[data-step=end] .rv-dots i{background:var(--ink)}
+.rv-card{background:var(--surface);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);padding:32px;margin-top:20px}
+.review[data-step=end] .rv-card{display:none}
+.rv-card .q{font:400 24px/1.3 var(--serif);margin-top:14px;text-wrap:balance}
+.review[data-step=shown] .q{color:var(--ink-3);text-decoration:line-through;text-decoration-color:var(--priority);text-decoration-thickness:1.5px}
+.rv-card .a{font:500 24px/1.3 var(--serif);margin-top:6px;text-wrap:balance}
+.rv-card .why{font-size:15px;color:var(--ink-2);margin-top:12px}
+.rv-card .help{font-size:14px;color:var(--ink-3);margin-top:12px}
+.rv-card .actions{margin-top:28px}
+.rv-end{margin-top:40px}
+.rv-end h2{font:500 28px/1.2 var(--serif);letter-spacing:-.01em}
+.rv-end p{font-size:15px;color:var(--ink-2);margin:6px 0 20px}
+.empty{padding-top:28px;border-top:1px solid var(--line)}
+.empty h2{font:500 22px/1.3 var(--serif)}
+.empty>p{font-size:15px;color:var(--ink-2);margin-top:4px;max-width:56ch}
+.empty .btn{margin-top:14px}
+.example{margin-top:24px;border:1px dashed var(--line-strong);border-radius:12px;padding:14px 20px 0}
+.example .mk{border-top:0;padding-top:8px}
+.mk{position:relative}
+.mk .del{position:absolute;right:-36px;top:14px;width:28px;height:28px;border-radius:6px;display:grid;place-items:center;color:var(--ink-3);opacity:0;transition:opacity .12s,background .12s}
+.mk .del svg{width:16px;height:16px}
+.mk:hover .del,.mk .del:focus-visible{opacity:1}
+.mk .del:hover{background:var(--sunken);color:var(--priority)}
+@media (hover:none){.mk .del{opacity:1}}
+
+/* ---------- LIBRARY ---------- */
+.lib-grid{display:grid;grid-template-columns:minmax(0,1fr) 296px;gap:56px;align-items:start}
+.lib-nav{position:sticky;top:0;z-index:2;display:flex;gap:4px;background:var(--bg);padding:10px 0;margin:-10px 0 22px;border-bottom:1px solid var(--line)}
+.lib-nav button{height:32px;padding:0 10px;margin-left:-10px;margin-right:10px;border-radius:6px;font-size:13px;font-weight:500;color:var(--ink-2);white-space:nowrap}
+.lib-nav button:hover{background:var(--sunken);color:var(--ink)}
+.lib-nav .narrow{display:none}
+.lib-main>section{margin-bottom:52px;scroll-margin-top:64px}
+.lib-main h2{font:500 22px/1.3 var(--serif)}
+.lib-main .lede{font-size:14px;color:var(--ink-3);margin:4px 0 16px;max-width:60ch}
+.lib-main h3{font:600 13px/1.4 var(--sans);color:var(--ink-2);margin:24px 0 10px}
+.prow{border-top:1px solid var(--line)}
+.prow:last-child{border-bottom:1px solid var(--line)}
+.prow-h{display:flex;align-items:center;gap:8px}
+.ptog{flex:1;min-width:0;display:flex;align-items:center;gap:12px;min-height:56px;padding:8px 0;text-align:left}
+.pid{flex:none;width:56px;font:500 12px ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--ink-3)}
+.pt{font-size:15px;font-weight:500;min-width:0}
+.pt small{display:block;font-size:13px;font-weight:400;color:var(--ink-3)}
+.ptog:hover .pt{color:var(--accent)}
+.ptog:hover .pt small{color:var(--ink-3)}
+.chev{flex:none;width:28px;height:28px;display:grid;place-items:center;color:var(--ink-3);margin-left:auto}
+.chev svg{width:16px;height:16px;transition:transform .18s var(--ease)}
+.prow.open .chev svg{transform:rotate(180deg)}
+.prow-b{display:none;padding:0 0 22px 68px}
+.prow.ref .prow-b{padding-left:0}
+.prow.open .prow-b{display:block}
+.prow-b>p{font-size:14px;color:var(--ink-2);max-width:68ch;margin-bottom:12px;text-wrap:pretty}
+.prompt{background:var(--sunken);border-radius:8px;padding:16px 18px;font-size:13.5px;line-height:1.6;color:var(--ink-2);white-space:pre-wrap;max-width:72ch;margin-bottom:12px}
+.notice{padding:14px 16px;border-radius:12px;font-size:14px;margin-bottom:20px;text-wrap:pretty}
+.notice.warn{background:var(--borderline-soft)}.notice.warn strong{color:var(--borderline);font-weight:600}
+.tbl{overflow-x:auto;border:1px solid var(--line);border-radius:8px}
+.tbl table{border-collapse:collapse;width:100%;font-size:13px;line-height:1.45}
+.tbl th{font-weight:600;text-align:left;color:var(--ink-2);background:var(--sunken);white-space:nowrap}
+.tbl th,.tbl td{padding:10px 12px;border-top:1px solid var(--line);vertical-align:top}
+.tbl tr:first-child th{border-top:0}
+.tbl td a,.reslist a{text-decoration:underline;text-decoration-color:var(--line-strong);text-underline-offset:3px}
+.tbl td a:hover,.reslist a:hover{text-decoration-color:var(--accent)}
+.tbl td.num{white-space:nowrap}
+.reslist{list-style:none;padding:0;display:grid;gap:10px;font-size:15px}
+.reslist li{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px}
+.reslist span{color:var(--ink-3);font-size:14px}
+.data{position:sticky;top:36px}
+.data p{font-size:13px;color:var(--ink-2);margin-bottom:12px}
+.data .actions{margin-top:0}
+.field{display:grid;gap:6px;font-size:13px;font-weight:500;color:var(--ink-2);margin-bottom:14px}
+.field small{font-weight:400;color:var(--ink-3);font-size:13px}
+.data .hint{margin:0;font-size:12px;color:var(--ink-3)}
+
+.proto{position:fixed;right:16px;bottom:12px;z-index:5;display:flex;gap:6px}
+.proto select{height:30px;min-height:0;width:auto;font-size:13px;padding:0 8px;border-color:var(--line-strong)}
+
+/* ---------- responsive ---------- */
+@media (max-width:1080px){
+  .today-grid,.plan-grid,.lib-grid{grid-template-columns:minmax(0,1fr)}
+  .detail{position:static;margin-bottom:28px}
+  .data{position:static}
+  .lib-nav .narrow{display:block}
+}
+@media (max-width:760px){
+  .shell{display:block}
+  .rail{display:none}
+  main{padding:20px 16px calc(88px + env(safe-area-inset-bottom))}
+  .tabbar{display:grid;grid-template-columns:repeat(5,1fr);position:fixed;z-index:4;left:0;right:0;bottom:0;background:var(--surface);border-top:1px solid var(--line);padding:6px 4px calc(6px + env(safe-area-inset-bottom))}
+  .tabbar button{display:grid;justify-items:center;gap:2px;font-size:11px;font-weight:500;color:var(--ink-3);min-height:48px;align-content:center}
+  .tabbar button[aria-current=page]{color:var(--accent)}
+  .tabbar svg{width:22px;height:22px}
+  .today-head{grid-template-columns:minmax(0,1fr) auto;gap:16px;margin-bottom:20px}
+  .today-head h1,.page-head h1{font-size:26px}
+  .countdown b{font-size:40px}
+  .journey{gap:8px}.week{gap:2px}
+  .week::after{font-size:11px}
+  .exam span{display:none}
+  .next{padding:20px;margin:0 -4px}
+  .next h2{font-size:21px}
+  .actions .btn.lg:not(.ghost){flex:1;justify-content:center}
+  .actions .spacer{display:none}
+  .btn,.input{min-height:44px}
+  .btn.sm{min-height:44px}
+  .seg button{height:44px}
+  .cells{gap:4px}
+  .cell{padding:8px 4px 6px;min-height:64px;align-items:center;text-align:center}
+  .cell .mn,.cell .kind{display:none}
+  .cell.mock .kind{display:block;font-size:11px}
+  .cell .dn{font-size:18px}
+  .cell .dots{justify-content:center;flex-wrap:wrap}
+  .wk h2 span{display:none}
+  .due{flex-wrap:wrap;gap:12px 16px;padding:16px}
+  .due .btn{margin-left:0;width:100%;justify-content:center}
+  .composer{grid-template-columns:1fr}.composer svg{display:none}
+  .composer-more{grid-template-columns:1fr 1fr}
+  .composer-more .input:first-child{grid-column:1/-1}
+  .composer-more .btn{grid-column:1/-1;justify-content:center}
+  .mk{grid-template-columns:1fr;gap:10px}
+  .mk .side{justify-items:start;text-align:left;display:flex;flex-wrap:wrap;gap:6px 12px}
+  .flex,.skill{grid-template-columns:1fr;gap:16px}
+  .skill .big{margin-top:6px}
+  .proto{top:auto;bottom:76px}
+  .more{padding-left:0}
+  .mk .del{right:-4px;top:auto;bottom:10px;width:44px;height:44px}
+  .paper{grid-template-columns:1fr;gap:4px}
+  .rv-card{padding:24px 20px}
+  .rv-card .actions .btn,.rv-end .btn{flex:1;justify-content:center}
+  .lib-nav{overflow-x:auto;margin-left:-16px;margin-right:-16px;padding-left:16px;padding-right:16px}
+  .lib-nav button{height:40px}
+  .prow-b{padding-left:0}
+  .pid{width:48px}
+  .reslist li{grid-template-columns:1fr;gap:2px}
+  .prow-h{flex-wrap:wrap;column-gap:8px}
+  .ptog{flex:1 0 0;min-width:calc(100% - 40px)}
+  .prow-h>.chev{order:1}
+  .prow-h>.btn{order:2;margin:-4px 0 14px}
+  .prow-h>.ptog+.btn{margin-left:56px}
+  .cell.mock .kind{font-size:10px;white-space:nowrap}
+  .tbl table{min-width:640px}
+  .data .actions .btn{flex:1;justify-content:center}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="proto">
+  <select class="input" id="jump" aria-label="Prototype screen and state">
+    <option value="today">Today</option><option value="today:done">Today · day complete</option><option value="today:exam">Today · exam day</option>
+    <option value="plan">Plan</option><option value="mistakes">Mistakes</option><option value="mistakes:review">Mistakes · review</option><option value="mistakes:empty">Mistakes · empty</option>
+    <option value="progress">Progress</option><option value="library">Library</option>
+  </select>
+  <button class="btn sm" id="theme">Theme</button>
+</div>
+
+<div class="shell">
+  <nav class="rail" aria-label="Sections">
+    <div class="brand">C1 <i>Prep</i></div>
+    <button class="nav" data-go="today" aria-current="page"><svg class="i" data-i="today"></svg>Today</button>
+    <button class="nav" data-go="plan"><svg class="i" data-i="plan"></svg>Plan</button>
+    <button class="nav" data-go="mistakes"><svg class="i" data-i="mistakes"></svg>Mistakes<span class="badge num">3</span></button>
+    <button class="nav" data-go="progress"><svg class="i" data-i="progress"></svg>Progress</button>
+    <button class="nav" data-go="library"><svg class="i" data-i="library"></svg>Library</button>
+    <div class="rail-foot">
+      <span>Saved in this browser.<br>Last backup 2 days ago.</span>
+      <button>Export backup</button>
+    </div>
+  </nav>
+
+  <main>
+    <!-- ================= TODAY ================= -->
+    <section class="screen on" id="today">
+      <div data-v="default done">
+      <header class="today-head">
+        <div>
+          <p class="meta">Tuesday 24 November · Day 9 of 26 · 85 min</p>
+          <h1>Close the essay cycle; timed long-text reading.</h1>
+        </div>
+        <div class="countdown"><b class="num">18</b><span>days to the exam<br>Sat 12 Dec</span></div>
+      </header>
+
+      <div class="journey" id="journey" role="img" aria-label="26-day plan: 8 days complete, today is day 9, Mock 1 on day 13, Mock 2 on day 20, exam on 12 December"></div>
+
+      <div class="today-grid">
+        <div>
+          <div class="dayprog">
+            <span data-v="default"><strong>1 of 4</strong> done</span><span data-v="done"><strong>4 of 4</strong> done</span>
+            <div class="bar" aria-hidden="true"><i class="done" style="flex:10"></i><i class="now" style="flex:35"></i><i style="flex:30"></i><i style="flex:10"></i></div>
+            <span class="num" data-v="default">75 min left</span><span class="num" data-v="done">85 min logged</span>
+          </div>
+
+          <div class="donecard" data-v="done">
+            <h2>Done for today.</h2>
+            <p>Day 9 of 26 complete. 18 days to go.</p>
+            <div class="tomorrow">
+              <p class="meta">Tomorrow · Wednesday 25 November · 80 min</p>
+              <p class="serif">Word formation and transformations under time; full-attention Listening.</p>
+              <button class="btn" data-go="plan">See it on Plan <svg class="i" data-i="arrow"></svg></button>
+            </div>
+          </div>
+
+          <article class="next" data-v="default">
+            <div class="row1"><b>Next</b><span>·</span><span>Reading</span><span>·</span><span>Core</span><span>·</span><span class="num">35 min</span></div>
+            <h2>Flo-Joe Reading Test 1, Parts 5 and 6</h2>
+            <p class="body">Timed, 27 minutes. Then highlight the sentence that proves each answer in <a href="#">FJ Reading Test 1</a>.</p>
+            <div class="actions">
+              <a class="btn primary lg" href="#">Open exercise <svg class="i" data-i="ext"></svg></a>
+              <button class="btn lg"><svg class="i" data-i="check"></svg>Done</button>
+              <span class="spacer"></span>
+              <button class="btn ghost lg">Skip</button>
+              <button class="btn ghost lg" aria-label="Move to another day"><svg class="i" data-i="plan"></svg></button>
+            </div>
+            <div class="record">
+              <div class="head"><b>Record your result</b><span class="basis unofficial"><i></i>Unofficial practice · trend only</span></div>
+              <div class="scores">
+                <label class="score">Part 5 <input class="input num" inputmode="decimal" aria-label="Part 5 score"> <span class="muted num">/ 6</span></label>
+                <label class="score">Part 6 <input class="input num" inputmode="decimal" aria-label="Part 6 score"> <span class="muted num">/ 4</span></label>
+              </div>
+              <input class="input" placeholder="Note: key feedback, time left" aria-label="Note">
+            </div>
+          </article>
+
+          <div class="tasks">
+            <div class="sec">Today <span class="count">4 tasks</span></div>
+            <button class="task done"><span class="check"><svg class="i" data-i="check"></svg></span><span><span class="t">Notebook review</span></span><span class="m num">10 min</span></button>
+            <button class="task"><span class="check"></span><span><span class="t">Essay 2: GPT-2 diagnosis, self-correct, rewrite, GPT-3</span><div class="s">Writing · Core</div></span><span class="m num">30 min</span></button>
+            <button class="task"><span class="check"></span><span><span class="t">Speaking shadow test, Part 2 only, both long turns in VID 2, recorded</span><div class="s">Speaking · Optional</div></span><span class="m num">10 min</span></button>
+          </div>
+
+          <div class="tasks" data-v="default">
+            <div class="sec">Catch-up <span class="count">2 missed core tasks, at most 45 min a day</span></div>
+            <button class="task skip"><span class="check"></span><span><span class="t">FJ Reading Test 1 Part 7, timed 15, then mark each gap with the words that link it</span><div class="s">Reading · skipped Sun 22 Nov</div></span><span class="m num">15 min</span></button>
+            <button class="task"><span class="check"></span><span><span class="t">FJ Test 2 Part 1 and Part 2, timed 15, check</span><div class="s">Use of English · from Mon 23 Nov</div></span><span class="m num">15 min</span></button>
+          </div>
+        </div>
+
+        <aside>
+          <section>
+            <div data-v="default">
+              <div class="sec">Review due <span class="count num">3</span></div>
+              <p class="peek"><s>She insisted to pay for dinner</s></p>
+              <button class="btn" data-go="mistakes:review">Start review <svg class="i" data-i="arrow"></svg></button>
+            </div>
+            <div data-v="done">
+              <div class="sec">Review due <span class="count num">0</span></div>
+              <p class="meta">Nothing due. New mistakes come back tomorrow.</p>
+            </div>
+          </section>
+          <section>
+            <div class="sec">Today's brief</div>
+            <dl class="brief">
+              <div><dt>Done when</dt><dd>Rewrite done; every Reading answer has a highlighted justification.</dd></div>
+              <div><dt>Record</dt><dd>Part 5 /6, Part 6 /4 (unofficial); essay bands and /20 (tutor); one Speaking note.</dd></div>
+              <div><dt>Short on time? 30 min</dt><dd><code>d09-a</code> and <code>d09-c</code> only.</dd></div>
+            </dl>
+          </section>
+          <section>
+            <div class="sec">Note for today</div>
+            <textarea class="input" rows="3" aria-label="Note for today"></textarea>
+          </section>
+        </aside>
+      </div>
+      </div>
+
+      <!-- exam day: no strip, no countdown -->
+      <div class="examday" data-v="exam">
+        <p class="meta">Saturday 12 December · Speaking: Sat 12 Dec, 14:40</p>
+        <h1>Exam day</h1>
+        <p class="lede">Nothing to study today. One reminder per paper, in the order you will sit them.</p>
+        <div class="paper"><h2>Reading and Use of English<span>90 min</span></h2><p>Do Parts 1–4 in 30–35 minutes, never leave a blank (no negative marking), check the answered bars before time ends.</p></div>
+        <div class="paper"><h2>Writing<span>90 min</span></h2><p>Read all three Part 2 questions before choosing, take a prepared genre unless its topic gives you nothing to say; seven minutes of planning per task on scrap paper, watch the word count, keep eight minutes to proofread spelling by hand.</p></div>
+        <div class="paper"><h2>Listening<span>about 40 min</span></h2><p>Use every pause to read ahead; use the two checking minutes for Part 2 spelling.</p></div>
+        <div class="paper"><h2>Speaking<span>15 min</span></h2><p>Compare and speculate in Part 2; in Part 3 ask, react and build on what your partner says.</p></div>
+      </div>
+    </section>
+
+    <!-- ================= PLAN ================= -->
+    <section class="screen" id="plan">
+      <header class="page-head">
+        <div><h1>The 26 days</h1><p>The calendar never shifts. Past days stay open so you can log late.</p></div>
+        <button class="btn"><svg class="i" data-i="plus"></svg>Add task</button>
+      </header>
+      <div class="plan-grid">
+        <div id="weeks"></div>
+        <div class="detail">
+          <p class="meta">Tuesday 24 November · Day 9 · 85 min</p>
+          <h3>Close the essay cycle; timed long-text reading.</h3>
+          <button class="task done"><span class="check"><svg class="i" data-i="check"></svg></span><span><span class="t">Notebook review</span></span><span class="m num">10</span></button>
+          <button class="task"><span class="check"></span><span><span class="t">FJ Reading Test 1 Part 5 and Part 6, timed 27</span><div class="s">Reading · Core</div></span><span class="m num">35</span></button>
+          <button class="task"><span class="check"></span><span><span class="t">Essay 2: GPT-2 diagnosis, self-correct, rewrite, GPT-3</span><div class="s">Writing · Core</div></span><span class="m num">30</span></button>
+          <div class="more" hidden>
+            <p class="body">Paste essay 2 with GPT-2 and read the diagnosis. Correct every numbered error yourself, rewrite the essay, then check the rewrite with GPT-3 in the same chat.</p>
+            <div class="actions">
+              <button class="btn sm" data-copy><svg class="i" data-i="copy"></svg>Copy GPT-2</button>
+              <button class="btn sm" data-copy><svg class="i" data-i="copy"></svg>Copy GPT-3</button>
+            </div>
+            <div class="actions">
+              <button class="btn primary"><svg class="i" data-i="check"></svg>Done</button>
+              <button class="btn ghost">Skip</button>
+              <button class="btn ghost" aria-label="Move to another day"><svg class="i" data-i="plan"></svg></button>
+            </div>
+            <div class="record">
+              <div class="head"><b>Record your result</b><span class="basis tutor"><i></i>Tutor assessment</span></div>
+              <div class="scores">
+                <label class="score">Content <input class="input num" inputmode="decimal" value="4"></label>
+                <label class="score">Comm. Achievement <input class="input num" inputmode="decimal" value="3"></label>
+                <label class="score">Organisation <input class="input num" inputmode="decimal"></label>
+                <label class="score">Language <input class="input num" inputmode="decimal"></label>
+              </div>
+              <input class="input" placeholder="Note: key feedback, time left" aria-label="Note">
+              <p class="caption">Bands 0 to 5 in whole steps, total out of 20. Not examiner-marked.</p>
+            </div>
+          </div>
+          <button class="task"><span class="check"></span><span><span class="t">Speaking shadow test, Part 2 only</span><div class="s">Speaking · Optional</div></span><span class="m num">10</span></button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= MISTAKES ================= -->
+    <section class="screen" id="mistakes">
+      <div class="review" data-v="review" data-step="ask">
+        <div class="rv-top">
+          <button class="btn ghost sm" data-go="mistakes"><svg class="i" data-i="arrow"></svg>Notebook</button>
+          <span class="rv-dots" aria-hidden="true"><i class="now"></i><i></i><i></i></span>
+          <span class="num" data-s="ask shown">1 of 3</span><span class="num" data-s="end">3 of 3</span>
+        </div>
+        <div class="rv-card">
+          <p class="meta">Use of English · preposition · step 1 of 3</p>
+          <p class="q">She insisted to pay for dinner</p>
+          <div data-s="ask">
+            <p class="help">Say or type the correction first, then check.</p>
+            <div class="actions"><button class="btn primary lg" data-to="shown">Reveal</button></div>
+          </div>
+          <div data-s="shown">
+            <p class="a">She insisted on paying for dinner</p>
+            <p class="why">insist on + -ing</p>
+            <div class="actions"><button class="btn lg" data-to="end">Missed</button><button class="btn primary lg" data-to="end"><svg class="i" data-i="check"></svg>Got it</button></div>
+          </div>
+        </div>
+        <div class="rv-end" data-s="end">
+          <h2>Review finished. 3 items done.</h2>
+          <p>Two move on to their next step; one comes back tomorrow.</p>
+          <button class="btn" data-go="mistakes">Back to the notebook</button>
+        </div>
+      </div>
+
+      <div data-v="default empty">
+      <header class="page-head"><div><h1>Mistake notebook</h1><p>Only errors you could repeat, not slips. Three to eight a day is normal.</p></div></header>
+      <div class="due" data-v="default">
+        <b class="num">3</b>
+        <p><strong>due for review today</strong>About two minutes. Say the correction first, then check.</p>
+        <button class="btn primary lg" data-go="mistakes:review">Start review <svg class="i" data-i="arrow"></svg></button>
+      </div>
+      <form onsubmit="return false">
+        <div class="composer">
+          <input class="input" placeholder="What you wrote or chose" aria-label="Wrong">
+          <svg class="i" data-i="arrow"></svg>
+          <input class="input" placeholder="The correct version" aria-label="Correct">
+        </div>
+        <div class="composer-more">
+          <input class="input" placeholder="Why (the rule)" aria-label="Why">
+          <select class="input" aria-label="Skill"><option>Use of English</option><option>Reading</option><option>Listening</option><option>Writing</option><option>Speaking</option></select>
+          <input class="input" placeholder="Error type" aria-label="Error type">
+          <button class="btn">Add</button>
+        </div>
+        <p class="hint">Cmd+Enter saves and keeps the skill for the next one.</p>
+      </form>
+      </div>
+      <div class="empty" data-v="empty">
+        <h2>No mistakes yet.</h2>
+        <p>Add the first one after today's timed block: three to eight a day is normal.</p>
+        <div class="example">
+          <p class="meta">An entry looks like this</p>
+          <div class="mk"><div><p class="pair"><s>it depends of the weather</s><b>it depends on the weather</b></p><p class="why">depend on</p></div><div class="side"><span class="tag">preposition</span><span>Use of English</span><span>Comes back tomorrow</span><span><span class="pips"><i></i><i></i><i></i></span>step 1 of 3</span></div></div>
+        </div>
+      </div>
+      <div data-v="default">
+      <div class="toolbar">
+        <div class="seg" id="mfilter"><button aria-pressed="true" data-k="">All 5</button><button data-k="Reading">Reading</button><button data-k="Use of English">Use of English</button><button data-k="Listening">Listening</button><button data-k="Writing">Writing</button><button data-k="Speaking">Speaking</button></div>
+        <button class="btn sm" data-copy><svg class="i" data-i="copy"></svg><span>Copy <span id="copyn">5</span> as notebook lines</span></button>
+      </div>
+      <div class="types" id="types"><span class="tag">preposition 1</span><span class="tag">collocation 1</span><span class="tag">register 1</span><span class="tag">word form 1</span><span class="tag">spelling 1</span></div>
+      <div class="mk" data-skill="Use of English"><div><p class="pair"><s>She insisted to pay for dinner</s><b>She insisted on paying for dinner</b></p><p class="why">insist on + -ing</p></div><div class="side"><span class="tag">preposition</span><span>Use of English</span><span style="color:var(--accent);font-weight:600">Due today</span><span><span class="pips"><i></i><i></i><i></i></span>step 1 of 3</span></div></div>
+      <div class="mk" data-skill="Use of English"><div><p class="pair"><s>do a decision</s><b>make a decision</b></p><p class="why">make + decision</p></div><div class="side"><span class="tag">collocation</span><span>Use of English</span><span style="color:var(--accent);font-weight:600">Due today</span><span><span class="pips"><i class="on"></i><i></i><i></i></span>step 2 of 3</span></div></div>
+      <div class="mk" data-skill="Writing"><div><p class="pair"><s>Loads of people reckon that</s><b>Many people believe that</b></p><p class="why">Essay register is formal; no conversational phrases.</p></div><div class="side"><span class="tag">register</span><span>Writing</span><span style="color:var(--accent);font-weight:600">Due today</span><span><span class="pips"><i></i><i></i><i></i></span>step 1 of 3</span></div></div>
+      <div class="mk" data-skill="Use of English"><div><p class="pair"><s>the compete was fierce</s><b>the competition was fierce</b></p><p class="why">A noun is needed after the article.</p></div><div class="side"><span class="tag">word form</span><span>Use of English</span><span>Next review Sat 28 Nov</span><span><span class="pips"><i class="on"></i><i class="on"></i><i></i></span>step 3 of 3</span></div></div>
+      <div class="mk" data-skill="Writing"><div><p class="pair"><s>accomodation</s><b>accommodation</b></p><p class="why">Double c, double m.</p></div><div class="side"><span class="tag">spelling</span><span>Writing</span><span>Retired</span><span><span class="pips"><i class="on"></i><i class="on"></i><i class="on"></i></span>3 of 3 done</span></div></div>
+      <div class="empty" id="nores" hidden>
+        <h2>Nothing matches this filter.</h2>
+        <p>No mistakes are logged for this skill yet.</p>
+        <button class="btn" id="showall">Show all 5</button>
+      </div>
+      </div>
+    </section>
+
+    <!-- ================= PROGRESS ================= -->
+    <section class="screen" id="progress">
+      <header class="page-head"><div><h1>Progress</h1><p>No predicted exam score, on purpose. Three kinds of result, never mixed.</p></div><button class="btn"><svg class="i" data-i="plus"></svg>Add result</button></header>
+      <div class="legend">
+        <span class="basis official"><i></i>Official anchor · Test A and Test B only</span>
+        <span class="basis unofficial"><i></i>Unofficial practice · trend only</span>
+        <span class="basis tutor"><i></i>Tutor assessment · not examiner-marked</span>
+      </div>
+      <div class="flex">
+        <div><p class="meta">This week's flex blocks go to</p><h2>Writing, Task 1 Communicative Achievement, then Use of English Part 4</h2></div>
+        <div>
+          <p class="meta" style="margin-bottom:10px">Gap to the Secure line, in points</p>
+          <div class="gap"><span>Writing</span><i style="width:100%"></i><span class="num">15</span></div>
+          <div class="gap"><span>Use of English</span><i style="width:27%"></i><span class="num">4</span></div>
+          <div class="gap"><span>Reading</span><i style="width:27%"></i><span class="num">4</span></div>
+          <div class="gap"><span>Listening</span><i style="width:20%"></i><span class="num">3</span></div>
+        </div>
+      </div>
+
+      <div class="skill">
+        <div><h2>Reading</h2><span class="status borderline">Borderline</span><p class="big num">35<small> / 50</small></p></div>
+        <div>
+          <div class="result">
+            <div class="cap"><span class="basis official"><i></i>Official</span><span>Diagnostic, Test A · Tue 17 Nov</span></div>
+            <div class="anchor" role="img" aria-label="35 out of 50. Anchors: 23 for scale 160, 32 for scale 180, 43 for scale 200.">
+              <div class="fill" style="width:70%"></div>
+              <div class="tick" style="left:46%"><span>160 · B2</span></div>
+              <div class="tick pass" style="left:64%"><span>180 · C1</span></div>
+              <div class="tick est" style="left:78%"><span>B est.</span></div>
+              <div class="tick" style="left:86%"><span>200</span></div>
+              <div class="you num" style="left:70%">35</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="skill">
+        <div><h2>Use of English</h2><span class="status priority">Priority</span><p class="big num">15<small> / 28</small></p></div>
+        <div>
+          <div class="result">
+            <div class="cap"><span class="basis official"><i></i>Official</span><span>Diagnostic, Test A · Tue 17 Nov</span></div>
+            <div class="anchor" role="img" aria-label="15 out of 28">
+              <div class="fill" style="width:53.6%"></div>
+              <div class="tick" style="left:39.3%"><span>160 · B2</span></div>
+              <div class="tick pass" style="left:57.1%"><span>180 · C1</span></div>
+              <div class="tick est" style="left:73.2%"><span>B est.</span></div>
+              <div class="tick" style="left:82.1%"><span>200</span></div>
+              <div class="you num" style="left:53.6%">15</div>
+            </div>
+          </div>
+          <div class="result">
+            <div class="cap"><span class="basis unofficial"><i></i>Unofficial</span><span>Practice sets, percent correct</span></div>
+            <div class="trend" role="img" aria-label="Flo-Joe Test 1: 64 percent"><div><i style="bottom:64%"></i><b style="bottom:64%">64%</b><span>21 Nov</span></div></div>
+            <p class="meta">Flo-Joe Test 1 · 18/28 · 64% · Part 2 6/8, Part 3 5/8, Part 4 7/12</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="skill">
+        <div><h2>Speaking</h2><span class="status borderline">Borderline</span><p class="big num">3.5<small> mean band</small></p></div>
+        <div>
+          <div class="cap result" style="margin-bottom:14px"><div class="cap" style="margin:0"><span class="basis tutor"><i></i>Tutor</span><span>Speaking simulation 1 · Fri 20 Nov · probably generous</span></div></div>
+          <div class="bands" id="bands"></div>
+        </div>
+      </div>
+      <p class="foot">Within about 3 scale points of a line is uncertain. "B est." is an interpolated estimate, not a Cambridge figure. Cambridge: the conversion tables "should not be used to try to predict precise scores in the live exam".</p>
+    </section>
+
+    <section class="screen" id="library">
+      <header class="page-head"><div><h1>Library</h1><p>Prompts to paste, the resources the plan uses, and the rules behind it.</p></div></header>
+      <div class="lib-grid">
+        <div class="lib-main">
+          <nav class="lib-nav" aria-label="On this page">
+            <button data-scroll="lib-prompts">Tutor prompts</button><button data-scroll="lib-resources">Resources</button><button data-scroll="lib-reference">Reference</button><button class="narrow" data-scroll="lib-data">Your data</button>
+          </nav>
+          <section id="lib-prompts">
+            <h2>Tutor prompts</h2>
+            <p class="lede">Paste into ChatGPT. GPT-1 goes in once, as the Project instructions.</p>
+          <div class="prow"><div class="prow-h"><button class="ptog" aria-expanded="false"><span class="pid"></span><span class="pt">Setup and rules<small>Read once on Day 5</small></span></button><span class="chev"><svg class="i" data-i="chev"></svg></span></div><div class="prow-b"><p>Create one ChatGPT Project named "C1 Advanced". Paste GPT-1 as its instructions. Start a new chat inside the Project for each text you have marked, so an earlier mark does not anchor the next one.</p><p>Three rules: you attempt first; hints before answers; every session ends with errors copied into the mistake notebook.</p></div></div>
+          <div class="prow"><div class="prow-h"><button class="ptog" aria-expanded="false"><span class="pid">GPT-1</span><span class="pt">Tutor setup<small>Once, as Project instructions</small></span></button><button class="btn sm" data-copy><svg class="i" data-i="copy"></svg>Copy</button><span class="chev"><svg class="i" data-i="chev"></svg></span></div><div class="prow-b"><p>The verbatim prompt text renders here.</p></div></div>
+          <div class="prow"><div class="prow-h"><button class="ptog" aria-expanded="false"><span class="pid">GPT-1b</span><span class="pt">Blind calibration<small>Day 5, repeat on Day 21 if marks look off</small></span></button><button class="btn sm" data-copy><svg class="i" data-i="copy"></svg>Copy</button><span class="chev"><svg class="i" data-i="chev"></svg></span></div><div class="prow-b"><p>The verbatim prompt text renders here.</p></div></div>
+          <div class="prow open"><div class="prow-h"><button class="ptog" aria-expanded="true"><span class="pid">GPT-2</span><span class="pt">Writing diagnosis<small>No rewrite</small></span></button><button class="btn sm" data-copy><svg class="i" data-i="copy"></svg>Copy</button><span class="chev"><svg class="i" data-i="chev"></svg></span></div><div class="prow-b"><div class="prompt">Mark this C1 Advanced Writing answer as an examiner, to the standard of the calibration scripts.
+
+TASK: [paste the full task, including any notes or opinions]
+GENRE: [essay / proposal / report / review / letter or email]
+MY ANSWER ([n] words, written in [n] minutes): [paste]
+
+Give me, in this order:
+1. Content check first: list each thing the task required and say covered / partly / missing.
+2. A band 0-5 for Content, Communicative Achievement, Organisation and Language. Total /20.
+3. Genre and register: does the layout match what the target reader expects?
+4. A numbered list of every language error. DO NOT give the correction.
+
+Do not rewrite anything.</div><p>Then correct every numbered error yourself and send the corrections back. Record the four bands, not just the total.</p></div></div>
+          <div class="prow"><div class="prow-h"><button class="ptog" aria-expanded="false"><span class="pid">GPT-3</span><span class="pt">Rewrite check</span></button><button class="btn sm" data-copy><svg class="i" data-i="copy"></svg>Copy</button><span class="chev"><svg class="i" data-i="chev"></svg></span></div><div class="prow-b"><p>The verbatim prompt text renders here.</p></div></div>
+          <div class="prow"><div class="prow-h"><button class="ptog" aria-expanded="false"><span class="pid">GPT-4</span><span class="pt">Key word transformation drill</span></button><button class="btn sm" data-copy><svg class="i" data-i="copy"></svg>Copy</button><span class="chev"><svg class="i" data-i="chev"></svg></span></div><div class="prow-b"><p>The verbatim prompt text renders here.</p></div></div>
+          <div class="prow"><div class="prow-h"><button class="ptog" aria-expanded="false"><span class="pid">GPT-5</span><span class="pt">Recurring-error analysis<small>Day 21, or whenever the notebook passes about 40 entries</small></span></button><button class="btn sm" data-copy><svg class="i" data-i="copy"></svg>Copy</button><span class="chev"><svg class="i" data-i="chev"></svg></span></div><div class="prow-b"><p>The verbatim prompt text renders here.</p></div></div>
+          <div class="prow"><div class="prow-h"><button class="ptog" aria-expanded="false"><span class="pid">GPT-6</span><span class="pt">Full Speaking simulation<small>Voice mode; text works too</small></span></button><button class="btn sm" data-copy><svg class="i" data-i="copy"></svg>Copy 1</button><button class="btn sm" data-copy><svg class="i" data-i="copy"></svg>Copy 2</button><span class="chev"><svg class="i" data-i="chev"></svg></span></div><div class="prow-b"><p>The verbatim prompt text renders here.</p></div></div>
+          <div class="prow"><div class="prow-h"><button class="ptog" aria-expanded="false"><span class="pid">GPT-7</span><span class="pt">Shadow test with the official videos<small>No ChatGPT, and single-part drills</small></span></button><span class="chev"><svg class="i" data-i="chev"></svg></span></div><div class="prow-b"><p>The verbatim prompt text renders here.</p></div></div>
+          <div class="prow"><div class="prow-h"><button class="ptog" aria-expanded="false"><span class="pid">GPT-8</span><span class="pt">Mistake retest<small>Day 7, then any light day with ten spare minutes</small></span></button><button class="btn sm" data-copy><svg class="i" data-i="copy"></svg>Copy</button><span class="chev"><svg class="i" data-i="chev"></svg></span></div><div class="prow-b"><p>The verbatim prompt text renders here.</p></div></div>
+          <div class="prow"><div class="prow-h"><button class="ptog" aria-expanded="false"><span class="pid">GPT-9</span><span class="pt">Fresh writing prompt</span></button><button class="btn sm" data-copy><svg class="i" data-i="copy"></svg>Copy 1</button><button class="btn sm" data-copy><svg class="i" data-i="copy"></svg>Copy 2</button><span class="chev"><svg class="i" data-i="chev"></svg></span></div><div class="prow-b"><p>The verbatim prompt text renders here.</p></div></div>
+          </section>
+          <section id="lib-resources">
+            <h2>Resources</h2>
+            <p class="lede">Kept deliberately small. The eight core resources are more than 26 days can use.</p>
+            <p class="notice warn"><strong>Test B (official Sample 2) is sealed until 4 Dec.</strong> Do not unzip it or browse the handbook's sample-paper pages before then. It is used once, for Mock 2 on 5 Dec. The digital sample and paper Sample 1 are the same test (Test A): never count them as two.</p>
+            <h3>Core</h3>
+            <div class="tbl"><table><tr><th>#</th><th>Resource</th><th>Skills</th><th>Amount</th><th>Comparable scoring</th><th>Role in the plan</th></tr><tr><td class="num">R1</td><td><a href="#" onclick="return false">Official Test A, digital form</a></td><td>All written papers, real interface</td><td>1 full test</td><td>Yes</td><td>Diagnostic, Days 2 to 4</td></tr><tr><td class="num">R2a</td><td><a href="#" onclick="return false">Official Test A, paper form</a></td><td>Speaking booklet, six marked Writing scripts</td><td>Not a new test</td><td>Same test as R1</td><td>Day 5 calibration</td></tr><tr><td class="num">R2b</td><td><a href="#" onclick="return false">Official Test B (Sample 2)</a></td><td>All papers including audio</td><td>1 full test</td><td>Yes</td><td>Mock 2, Day 20. Do not open before Day 19</td></tr><tr><td class="num">R3</td><td><a href="#" onclick="return false">C1 Advanced Handbook</a></td><td>Format, assessment scales</td><td>No new test</td><td>No</td><td>Reference for the scales only</td></tr><tr><td class="num">R4</td><td><a href="#" onclick="return false">Assessing writing for C1 Advanced</a></td><td>Writing criteria, sample answers</td><td>26-page guide</td><td>Official criteria</td><td>Calibration, Day 5</td></tr><tr><td class="num">R5</td><td><a href="#" onclick="return false">Speaking videos and examiner comments</a></td><td>Speaking, all parts</td><td>3 full tests</td><td>Official marks</td><td>Shadow tests</td></tr><tr><td class="num">R6</td><td><a href="#" onclick="return false">Flo-Joe practice tests</a></td><td>Use of English Parts 1–4, Reading Parts 5–8</td><td>16 + 7 exercises</td><td>No</td><td>Timed part-level practice</td></tr><tr><td class="num">R7</td><td><a href="#" onclick="return false">engexam.info tests</a></td><td>Full R&amp;UoE and Listening tests</td><td>22 + 30 tests</td><td>No</td><td>Mock 1; all Listening practice</td></tr><tr><td class="num">R8</td><td><a href="#" onclick="return false">ChatGPT</a></td><td>Writing feedback, drills, speaking</td><td>Unlimited</td><td>No</td><td>Tutor; prompts above</td></tr></table></div>
+            <h3>Secondary, only when the plan points to them</h3>
+            <ul class="reslist">
+              <li><a href="#" onclick="return false">Digital exam tutorial video</a><span>Day 1</span></li>
+              <li><a href="#" onclick="return false">Information for candidates</a><span>Day 1, format overview</span></li>
+              <li><a href="#" onclick="return false">Flo-Joe Word Bank</a><span>Five-minute filler on emergency days</span></li>
+              <li><a href="#" onclick="return false">Write &amp; Improve</a><span>Optional second opinion on writing</span></li>
+            </ul>
+          </section>
+          <section id="lib-reference">
+            <h2>Reference</h2>
+            <p class="lede">The reasoning behind the plan, for when a rule needs checking.</p>
+          <div class="prow ref"><div class="prow-h"><button class="ptog" aria-expanded="false"><span class="pt">Score anchors and the three result classes</span><span class="chev"><svg class="i" data-i="chev"></svg></span></button></div><div class="prow-b"><div class="tbl"><table><tr><th>Paper</th><th>Max</th><th>160 · B2</th><th>180 · C1 pass</th><th>200 · C2</th></tr><tr><td>Reading</td><td class="num">50</td><td class="num">23</td><td class="num"><b>32</b></td><td class="num">43</td></tr><tr><td>Use of English</td><td class="num">28</td><td class="num">11</td><td class="num"><b>16</b></td><td class="num">23</td></tr><tr><td>Writing</td><td class="num">40</td><td class="num">16</td><td class="num"><b>24</b></td><td class="num">34</td></tr><tr><td>Listening</td><td class="num">30</td><td class="num">13</td><td class="num"><b>18</b></td><td class="num">26</td></tr><tr><td>Speaking</td><td class="num">75</td><td class="num">30</td><td class="num"><b>45</b></td><td class="num">66</td></tr></table></div></div></div>
+          <div class="prow ref"><div class="prow-h"><button class="ptog" aria-expanded="false"><span class="pt">Exam format</span><span class="chev"><svg class="i" data-i="chev"></svg></span></button></div><div class="prow-b"><p>The section text renders here through the existing Md component.</p></div></div>
+          <div class="prow ref"><div class="prow-h"><button class="ptog" aria-expanded="false"><span class="pt">How the plan works: daily blocks, rules, timings</span><span class="chev"><svg class="i" data-i="chev"></svg></span></button></div><div class="prow-b"><p>The section text renders here through the existing Md component.</p></div></div>
+          <div class="prow ref"><div class="prow-h"><button class="ptog" aria-expanded="false"><span class="pt">Baseline labels: Priority, Borderline, Secure</span><span class="chev"><svg class="i" data-i="chev"></svg></span></button></div><div class="prow-b"><p>The section text renders here through the existing Md component.</p></div></div>
+          <div class="prow ref"><div class="prow-h"><button class="ptog" aria-expanded="false"><span class="pt">Adaptive rules, flex pool and missed days</span><span class="chev"><svg class="i" data-i="chev"></svg></span></button></div><div class="prow-b"><p>The section text renders here through the existing Md component.</p></div></div>
+          <div class="prow ref"><div class="prow-h"><button class="ptog" aria-expanded="false"><span class="pt">Mock strategy and reading the results</span><span class="chev"><svg class="i" data-i="chev"></svg></span></button></div><div class="prow-b"><p>The section text renders here through the existing Md component.</p></div></div>
+          <div class="prow ref"><div class="prow-h"><button class="ptog" aria-expanded="false"><span class="pt">Skill methods in brief</span><span class="chev"><svg class="i" data-i="chev"></svg></span></button></div><div class="prow-b"><p>The section text renders here through the existing Md component.</p></div></div>
+          <div class="prow ref"><div class="prow-h"><button class="ptog" aria-expanded="false"><span class="pt">Exam day</span><span class="chev"><svg class="i" data-i="chev"></svg></span></button></div><div class="prow-b"><p>The section text renders here through the existing Md component.</p></div></div>
+          </section>
+        </div>
+        <aside class="data" id="lib-data">
+          <section>
+            <div class="sec">Backup</div>
+            <p>Everything you log lives only in this browser. Export once a week; import replaces all data after a check. Last export Sun 22 Nov.</p>
+            <div class="actions"><button class="btn">Export JSON</button><button class="btn">Import JSON</button></div>
+          </section>
+          <section>
+            <div class="sec">Exam details</div>
+            <label class="field">Speaking test date and time<input class="input" placeholder="from the Confirmation of Entry" value="Sat 12 Dec, 14:40"></label>
+            <label class="field"><span>Note <small>(keyboard layout, results date)</small></span><input class="input"></label>
+            <p class="hint">If Speaking falls before 12 December, move d24-c to two days before it and d25-c to the evening before, with "Move to" on the Plan tab.</p>
+          </section>
+          <section>
+            <div class="sec">Theme</div>
+            <div class="seg" id="themeseg"><button data-t="">System</button><button data-t="light">Light</button><button data-t="dark">Dark</button></div>
+          </section>
+        </aside>
+      </div>
+    </section>
+  </main>
+</div>
+
+<nav class="tabbar" aria-label="Sections">
+  <button data-go="today" aria-current="page"><svg class="i" data-i="today"></svg>Today</button>
+  <button data-go="plan"><svg class="i" data-i="plan"></svg>Plan</button>
+  <button data-go="mistakes"><svg class="i" data-i="mistakes"></svg>Mistakes</button>
+  <button data-go="progress"><svg class="i" data-i="progress"></svg>Progress</button>
+  <button data-go="library"><svg class="i" data-i="library"></svg>Library</button>
+</nav>
+
+<script>
+const ICONS={
+  today:'<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M6.3 17.7l-1.4 1.4M19.1 4.9l-1.4 1.4"/>',
+  plan:'<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>',
+  mistakes:'<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/>',
+  progress:'<path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/>',
+  library:'<path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/>',
+  ext:'<path d="M7 17 17 7M7 7h10v10"/>', check:'<path d="M20 6 9 17l-5-5"/>',
+  arrow:'<path d="M5 12h14M12 5l7 7-7 7"/>',
+  chev:'<path d="m6 9 6 6 6-6"/>', plus:'<path d="M12 5v14M5 12h14"/>',
+  trash:'<path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6M10 11v6M14 11v6"/>',
+  copy:'<rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>'}
+// every task row gets a check glyph and an expand chevron; notebook rows get a delete button
+document.querySelectorAll('.check:empty').forEach(c=>c.innerHTML='<svg class="i" data-i="check"></svg>')
+document.querySelectorAll('.task .m').forEach(m=>m.insertAdjacentHTML('beforeend','<svg class="i" data-i="chev"></svg>'))
+document.querySelectorAll('.mk[data-skill] .side').forEach(m=>m.insertAdjacentHTML('beforeend','<button class="del" aria-label="Delete"><svg class="i" data-i="trash"></svg></button>'))
+document.querySelectorAll('svg[data-i]').forEach(s=>{s.setAttribute('viewBox','0 0 24 24');s.innerHTML=ICONS[s.dataset.i]})
+
+const MIN=[40,95,75,90,85,100,50,85,85,80,90,55,255,80,85,85,85,90,50,270,85,80,85,85,45,25]
+const TODAY=9, WEEKS=['Baseline, then start','Technique and volume','Targeted improvement','Consolidation']
+const WD=['Mon','Tue','Wed','Thu','Fri','Sat','Sun']
+const dateOf=n=>{const d=new Date(2026,10,15+n);return d.getDate()}
+
+// journey strip: bar height = planned minutes (capped), so the shape of the plan is visible
+let j=''
+for(let w=0;w<4;w++){
+  j+=`<div class="week${w===3?' short':''}" data-label="Week ${w+1}">`
+  for(let n=w*7+1;n<=Math.min(w*7+7,26);n++){
+    const h=Math.round(Math.min(MIN[n-1],110)/110*100)
+    const c=n<TODAY?(n===7||n===8?'part':'done'):n===TODAY?'today':''
+    const mock=n===13?' mock" data-m="Mock 1':n===20?' mock" data-m="Mock 2':''
+    j+=`<i class="d ${c}${mock}" style="height:${Math.max(h,18)}%" title="Day ${n} · ${MIN[n-1]} min"></i>`
+  }
+  j+='</div>'
+}
+document.getElementById('journey').innerHTML=j+'<div class="exam"><i></i><span>Exam</span></div>'
+
+// plan weeks
+let p=''
+for(let w=0;w<4;w++){
+  const done=w===0?'6 of 7 days complete':w===1?'In progress':''
+  p+=`<div class="wk"><h2>Week ${w+1} <em>${WEEKS[w]}</em><span>${done}</span></h2><div class="cells">`
+  for(let n=w*7+1;n<=w*7+7;n++){
+    if(n===27){p+=`<div class="cell exam-cell"><span class="wd">Sat</span><span class="dn num">12</span><span class="mn">Exam</span></div>`;continue}
+    if(n>27){continue}
+    const past=n<TODAY, mock=n===13||n===20, light=[7,12,19,25,26].includes(n)
+    const cls=['cell',past&&'past',n===TODAY&&'today sel',mock&&'mock',light&&'light'].filter(Boolean).join(' ')
+    const nt=mock?4:light?3:4
+    let dots=''
+    for(let k=0;k<nt;k++)dots+=`<i class="${past?((n===7&&k===1)||(n===8&&k===1)?'late':'on'):n===TODAY&&k===0?'on':''}"></i>`
+    const kind=mock?`<span class="kind">Mock ${n===13?1:2}</span>`:light?'<span class="kind">light</span>':''
+    const mm=MIN[n-1]>=120?`${Math.floor(MIN[n-1]/60)} h ${MIN[n-1]%60}`:`${MIN[n-1]} min`
+    p+=`<button class="${cls}">${kind}<span class="wd">${n===TODAY?'Today':WD[(n-1)%7]}</span><span class="dn num">${dateOf(n)}</span><span class="mn num">${mm}</span><span class="dots">${dots}</span></button>`
+  }
+  p+='</div></div>'
+}
+document.getElementById('weeks').innerHTML=p
+
+// speaking bands
+document.getElementById('bands').innerHTML=[['Grammatical Resource',3.5],['Lexical Resource',3],['Discourse Management',3.5],['Interactive Communication',4],['Global Achievement',3.5]]
+  .map(([l,v])=>`<div><span>${l}</span><span class="bp">${[1,2,3,4,5].map(k=>`<i class="${v>=k?'on':v>=k-.5?'half':''}"></i>`).join('')}</span><span>${v}</span></div>`).join('')
+
+// nav + states + theme (prototype only). Hash is "screen" or "screen:state".
+const $$=(q,r=document)=>[...r.querySelectorAll(q)], jump=document.getElementById('jump')
+const rv=document.querySelector('.review')
+const step=st=>{rv.dataset.step=st;$$('[data-s]',rv).forEach(e=>e.hidden=!e.dataset.s.split(' ').includes(st))}
+$$('[data-to]',rv).forEach(b=>b.onclick=()=>step(b.dataset.to))
+const go=h=>{
+  const [t,st='default']=h.split(':'),scr=document.getElementById(t)
+  if(!scr||!scr.classList.contains('screen'))return
+  $$('.screen').forEach(x=>x.className=x===scr?'screen on st-'+st:'screen')
+  $$('[data-v]',scr).forEach(e=>e.hidden=!e.dataset.v.split(' ').includes(st))
+  $$('.nav,.tabbar button').forEach(b=>b.dataset.go===t?b.setAttribute('aria-current','page'):b.removeAttribute('aria-current'))
+  if(st==='review')step('ask')
+  jump.value=h;scrollTo(0,0);history.replaceState(null,'','#'+h)
+}
+$$('[data-go]').forEach(b=>b.onclick=()=>go(b.dataset.go))
+jump.onchange=()=>go(jump.value)
+addEventListener('hashchange',()=>go(location.hash.slice(1)))
+go(location.hash.slice(1)||'today')
+
+// expandable task rows in the Plan detail
+$$('.detail .task').forEach(t=>{const m=t.nextElementSibling;if(!m||!m.classList.contains('more'))return
+  t.setAttribute('aria-expanded','false');t.onclick=()=>{const o=t.getAttribute('aria-expanded')!=='true';t.setAttribute('aria-expanded',o);m.hidden=!o}})
+// below the two-column breakpoint the day detail sits under the selected day's week
+const mq=matchMedia('(max-width:1080px)'),det=document.querySelector('.detail')
+const place=()=>mq.matches?$$('.wk')[1].after(det):document.querySelector('.plan-grid').append(det)
+mq.addEventListener('change',place);place()
+// copy feedback
+$$('[data-copy]').forEach(b=>b.onclick=()=>{if(b.dataset.h)return;b.dataset.h=b.innerHTML;b.innerHTML=b.querySelector('svg').outerHTML+'Copied';setTimeout(()=>{b.innerHTML=b.dataset.h;delete b.dataset.h},1500)})
+// notebook filter, with the no-results state
+const mf=document.getElementById('mfilter'),nores=document.getElementById('nores')
+const filt=b=>{$$('button',mf).forEach(x=>x.setAttribute('aria-pressed',x===b));let n=0
+  $$('.mk[data-skill]').forEach(r=>{const on=!b.dataset.k||r.dataset.skill===b.dataset.k;r.hidden=!on;n+=on})
+  nores.hidden=n>0;document.getElementById('types').hidden=n===0;document.getElementById('copyn').textContent=n}
+$$('button',mf).forEach(b=>b.onclick=()=>filt(b))
+document.getElementById('showall').onclick=()=>filt(mf.firstChild)
+// library: disclosure rows and in-page jumps
+$$('.ptog').forEach(b=>b.onclick=()=>b.setAttribute('aria-expanded',b.closest('.prow').classList.toggle('open')))
+$$('[data-scroll]').forEach(b=>b.onclick=()=>document.getElementById(b.dataset.scroll).scrollIntoView({behavior:matchMedia('(prefers-reduced-motion:reduce)').matches?'auto':'smooth'}))
+// theme: System follows the OS, Light and Dark pin it
+const root=document.documentElement,ts=document.getElementById('themeseg')
+const theme=v=>{v?root.dataset.theme=v:delete root.dataset.theme;$$('button',ts).forEach(b=>b.setAttribute('aria-pressed',b.dataset.t===v))}
+$$('button',ts).forEach(b=>b.onclick=()=>theme(b.dataset.t))
+document.getElementById('theme').onclick=()=>theme((root.dataset.theme?root.dataset.theme==='dark':matchMedia('(prefers-color-scheme:dark)').matches)?'light':'dark')
+theme('')
+</script>
+</body>
+</html>

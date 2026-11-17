@@ -1,0 +1,15 @@
+node_modules/
+dist/
+.vercel/
+.env
+.env.*
+*.log
+.DS_Store
+.playwright-mcp/
+.impeccable/
+playwright-report/
+test-results/
+# Personal: exam registration confirmation and exported study backups
+Confirmation email.png
+*backup*.json
+c1prep*.json
